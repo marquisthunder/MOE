@@ -1,0 +1,85 @@
+FROM daocloud.io/creditx/minimal-notebook
+
+MAINTAINER Jupyter Project <jupyter@googlegroups.com>
+
+USER creditx
+
+# Install Python 3 packages
+RUN conda install --quiet --yes \
+    'boost' \
+    'gcc' \
+    'cmake' \
+    'pandas=0.17*' \
+    'numexpr=2.5*' \
+    'matplotlib=1.5*' \
+    'scipy=0.17*' \
+    'seaborn=0.7*' \
+    'scikit-learn=0.17*' \
+    'scikit-image=0.11*' \
+    'sympy=0.7*' \
+    'cython=0.23*' \
+    'patsy=0.4*' \
+    'statsmodels=0.6*' \
+    'cloudpickle=0.1*' \
+    'dill=0.2*' \
+    'numba=0.23*' \
+    'bokeh=0.11*' \
+    'h5py=2.5*' \
+    'pyzmq'
+RUN conda install --quied --yes -c DLR-SC doxygen
+    && conda clean -tipsy
+
+# Install Python 2 packages
+RUN conda create --quiet --yes -p $CONDA_DIR/envs/python2 python=2.7 \
+    'boost' \
+    'gcc' \
+    'cmake' \
+    'ipython=4.1*' \
+    'ipywidgets=4.1*' \
+    'pandas=0.17*' \
+    'numexpr=2.5*' \
+    'matplotlib=1.5*' \
+    'scipy=0.17*' \
+    'seaborn=0.7*' \
+    'scikit-learn=0.17*' \
+    'scikit-image=0.11*' \
+    'sympy=0.7*' \
+    'cython=0.23*' \
+    'patsy=0.4*' \
+    'statsmodels=0.6*' \
+    'cloudpickle=0.1*' \
+    'dill=0.2*' \
+    'numba=0.23*' \
+    'bokeh=0.11*' \
+    'h5py=2.5*' \
+    'pyzmq'
+RUN conda install --quied --yes -c DLR-SC doxygen
+    && conda clean -tipsy
+
+
+ENV MOE_NO_BUILD_CPP True
+RUN python setup.py install
+
+# Build the C++
+WORKDIR /home/creditx/MOE/moe
+RUN rm -rf build
+RUN mkdir build
+WORKDIR /home/creditx/MOE/moe/build
+RUN cmake /home/creditx/MOE/moe/optimal_learning/cpp/
+RUN make
+
+# Copy the built C++ into the python
+RUN cp -r /home/creditx/MOE/moe/build $(python -c "import site; print(site.getsitepackages()[0])")/moe/.
+
+RUN chown -R creditx:users /home/creditx/MOE && chmod -R a+r /home/creditx/MOE
+WORKDIR /home/creditx/MOE
+
+# Run tests
+RUN make test
+
+# Configure docker container.
+EXPOSE 6543
+
+# Set up the webserver
+CMD ["development.ini"]
+ENTRYPOINT ["pserve"]
